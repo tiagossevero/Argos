@@ -1,0 +1,367 @@
+=============================================================================
+ARGOS - COMPREHENSIVE PROJECT SUMMARY
+=============================================================================
+
+PROJECT NAME: ARGOS
+FULL NAME: Sistema de Análise de Mudança de Comportamento Tributário
+OWNER: tsevero (Receita Estadual de Santa Catarina)
+VERSION: 1.0
+CREATED: November 2025
+STATUS: Active
+
+=============================================================================
+1. PROJECT OVERVIEW
+=============================================================================
+
+ARGOS is an intelligent tax behavior monitoring system that:
+- Detects abnormal variations in ICMS tax rates practiced by companies
+- Analyzes electronic invoices (NFC-e) data from 2023-2025
+- Compares company-practiced rates against historical averages and expected values (IA)
+- Identifies suspicious companies/products for tax audit prioritization
+- Generates interactive dashboards and reports for decision makers
+
+=============================================================================
+2. MAIN FILES & COMPONENTS
+=============================================================================
+
+FILE                      SIZE      TYPE              PURPOSE
+════════════════════════════════════════════════════════════════════════════
+ARGOSCA.py               62 KB     Python/Streamlit  Main dashboard application
+ARGOSC.ipynb             2.2 MB    Jupyter Notebook  PySpark ETL processing
+ARGOSC-Exemplo.ipynb     69 KB     Jupyter Notebook  Example/demo notebook
+ARGOS INDIVIDUAL.json    179 KB    JSON/Metadata     Hue configuration
+
+=============================================================================
+3. TECHNOLOGY STACK
+=============================================================================
+
+COMPONENT               TECHNOLOGY         VERSION
+────────────────────────────────────────────────────────────────────────────
+Language                Python              3.10+
+Web Dashboard           Streamlit           1.0+
+Big Data Processing     PySpark             3.x
+Data Warehouse          Impala (HDFS)       SQL on Hadoop
+Database Driver         SQLAlchemy          1.4+
+Visualizations          Plotly              5.0+
+Data Analysis           Pandas/NumPy        Latest
+Analysis/ML             Seaborn/Matplotlib  Latest
+Notebooks               Jupyter/IPython     Latest
+
+=============================================================================
+4. DASHBOARD FEATURES (7 PAGES)
+=============================================================================
+
+PAGE 1: DASHBOARD EXECUTIVO (Executive Dashboard)
+   - KPI metrics (records, companies, correction rate, ICMS base)
+   - Distribution analysis by change classification
+   - Movement vs correct tariff analysis
+   - Temporal evolution charts
+   - Multi-dimensional metrics display
+
+PAGE 2: RANKING DE EMPRESAS (Company Rankings)
+   - Top companies by correction rate, extreme changes, calculation base
+   - Configurable sorting (ascending/descending)
+   - Dynamic period filters
+   - Table and chart visualizations
+
+PAGE 3: ANÁLISE DE PRODUTOS (Product Analysis)
+   - Product volatility identification
+   - Standard deviation analysis of tariffs
+   - Multi-company product comparison
+   - Problem product identification
+
+PAGE 4: ANÁLISE SETORIAL (Sectoral Analysis)
+   - Analysis by NCM (2 digits - Mercosul Common Nomenclature)
+   - Critical sector identification
+   - Correction rate by sector
+   - Temporal sector evolution
+
+PAGE 5: DRILL-DOWN POR EMPRESA (Company Drill-Down)
+   - Detailed analysis of specific company
+   - Temporal behavior evolution
+   - Top products by company
+   - Distribution classifications and movements
+
+PAGE 6: ANÁLISE COMPARATIVA TEMPORAL (Temporal Comparison)
+   - Comparison between periods (first vs last 6 months)
+   - Percentage variation of key metrics
+   - Improvement/decline trends
+   - Automatic interpretation
+
+PAGE 7: SISTEMA DE ALERTAS (Alert System)
+   - Automatic company risk scoring
+   - Alert levels (LOW, MEDIUM, HIGH, CRITICAL, EMERGENCY)
+   - Prioritization matrix (Score vs Financial Impact)
+   - Configurable risk weights
+
+=============================================================================
+5. DATABASE ARCHITECTURE
+=============================================================================
+
+DATA SOURCE: nfce.nfce (Raw NFC-e electronic invoice data)
+    ↓
+EXTRACTION & FLATTENING (ARGOSCA ETL)
+    ↓
+niat.argos_nfce_base_extraida
+    Base table: ~1.7M+ records
+    Fields: CNPJ, Period, GTIN, NCM, Description, BC_Fisco, Tariff
+    ↓
+WEIGHTED TARIFF CALCULATION
+    ↓
+niat.argos_nfce_periodo_base
+    Period aggregation: Monthly company-product summary
+    Weighted tariff = Σ(tariff × bc) / Σ(bc)
+    ↓
+HISTORICAL METRICS CALCULATION
+    ↓
+niat.argos_medias_historicas_produto
+    Historical average & standard deviation (3+ periods)
+    ↓
+BEHAVIOR CHANGE ANALYSIS
+    ↓
+niat.argos_mudanca_comportamento
+    FINAL TABLE: All calculations & classifications
+    Fields: 18+ including classification and movement
+    ↓
+niat.argos_vw_evolucao_nfce
+    Final view for analysis and queries
+
+=============================================================================
+6. CLASSIFICATION MODELS
+=============================================================================
+
+CHANGE CLASSIFICATION (based on historical standard deviation):
+   - STABLE_PRODUCT: No historical variation
+   - NORMAL_BEHAVIOR: Variation ≤ 1σ (standard deviation)
+   - SIGNIFICANT_CHANGE: Variation between 1σ and 2σ
+   - EXTREME_CHANGE: Variation > 2σ
+
+MOVEMENT VS CORRECT TARIFF (IA - Inteligência Artificial):
+   - APPROXIMATED_CORRECT: Tariff moved closer to expected value
+   - DISTANCED_CORRECT: Tariff moved away from expected value
+   - MAINTAINED_DISTANCE: Distance unchanged
+   - NO_IA_REFERENCE: No reference value available
+
+RISK SCORING (Alert System):
+   Score = (Extreme% × Weight_Class) + (Distanced% × Weight_Move) + (|Diff| × Weight_Mag)
+   
+   Default Weights:
+   - Classification: 40%
+   - Movement: 30%
+   - Magnitude: 20%
+   
+   Alert Levels:
+   - LOW: Score 0-35
+   - MEDIUM: Score 35-50
+   - HIGH: Score 50-65
+   - CRITICAL: Score 65-80
+   - EMERGENCY: Score 80+
+
+=============================================================================
+7. PERFORMANCE OPTIMIZATIONS
+=============================================================================
+
+CACHING STRATEGY:
+   - Aggregated Data: TTL 3600s (1 hour)
+   - Company Details: TTL 1800s (30 minutes)
+   - Reduces Impala load
+   - Fast initial dashboard load
+
+QUERY OPTIMIZATION:
+   - Aggregated data for dashboards
+   - On-demand detailed loading
+   - LIMIT 10,000 for period queries
+   - Recommended database indexes
+
+=============================================================================
+8. KEY METRICS & KPIS
+=============================================================================
+
+METRIC                      FORMULA
+────────────────────────────────────────────────────────────────────────────
+Total Records               COUNT(*)
+Monitored Companies         COUNT(DISTINCT cnpj)
+Correction Rate             (APPROXIMATED / TOTAL) × 100
+Total Calculation Base      SUM(bc_total)
+Extreme Changes             COUNT WHERE classification = EXTREME
+Extreme Rate                (EXTREME / TOTAL) × 100
+Avg Diff vs IA              AVG(|practiced - ia|)
+Periods Analyzed            COUNT(DISTINCT periodo)
+
+=============================================================================
+9. DATA SOURCES & TABLES
+=============================================================================
+
+INPUT TABLES:
+   • nfce.nfce: Raw NFC-e data (2023-2025, valid transactions only)
+   • niat.argos_cnpj: Monitored CNPJ list
+   • niat.tabela_niat: Expected tariffs (IA) by GTIN/NCM
+   • usr_sat_ods.vw_ods_contrib: Company names view
+
+INTERMEDIATE TABLES (created by ETL):
+   • niat.argos_nfce_base_extraida
+   • niat.argos_nfce_periodo_base
+   • niat.argos_medias_historicas_produto
+   • niat.argos_mudanca_comportamento
+
+OUTPUT VIEW:
+   • niat.argos_vw_evolucao_nfce (for analysis/queries)
+
+=============================================================================
+10. EXECUTION & SETUP
+=============================================================================
+
+DASHBOARD EXECUTION:
+   $ streamlit run ARGOSCA.py
+   → Access at: http://localhost:8501
+   → Requires password: tsevero258
+
+NOTEBOOK EXECUTION:
+   $ jupyter notebook ARGOSC.ipynb
+   → Uses PySpark kernel: conda_data_pipeline
+   → Connects to Impala database
+
+REQUIREMENTS:
+   - Python 3.10+
+   - Impala connection: bdaworkernode02.sef.sc.gov.br:21050
+   - Database: niat
+   - Credentials in ~/.streamlit/secrets.toml
+
+DEPENDENCIES:
+   Core: streamlit, pandas, numpy, plotly, sqlalchemy
+   Database: impyla (Impala connector)
+   Viz: matplotlib, seaborn
+   Processing: pyspark
+
+=============================================================================
+11. AUTHENTICATION & SECURITY
+=============================================================================
+
+METHOD: Password-based (Streamlit Session State)
+PASSWORD: tsevero258 (stored in ARGOSCA.py - line 5)
+SESSION: Encrypted session storage
+CREDENTIALS: Impala creds in ~/.streamlit/secrets.toml
+
+IMPORTANT: Change password before production deployment!
+
+=============================================================================
+12. KEY FEATURES & FUNCTIONS (ARGOSCA.py)
+=============================================================================
+
+MAIN FUNCTIONS:
+   • check_password(): Authentication
+   • get_impala_engine(): Database connection
+   • carregar_dados_agregados(): Load aggregated data
+   • carregar_detalhes_empresa(): Load company-specific data
+   • calcular_kpis_agregados(): Calculate KPI metrics
+   • aplicar_filtros_agregados(): Apply period/category filters
+   • dashboard_executivo(): Executive dashboard page
+   • ranking_empresas(): Company ranking page
+   • analise_produtos(): Product analysis page
+   • analise_setorial(): Sectoral analysis page
+   • drill_down_empresa(): Company drill-down page
+   • comparativo_temporal(): Temporal comparison page
+   • sistema_alertas(): Alert system page
+   • main(): Application entry point
+
+=============================================================================
+13. CURRENT LIMITATIONS
+=============================================================================
+
+DATA:
+   • Only NFC-e data (other documents not included)
+   • Period: 2023-2025
+   • Only monitored companies (niat.argos_cnpj list)
+
+PERFORMANCE:
+   • 10,000 record limit for period queries
+   • Aggregated data has 1-hour cache
+   • Requires 3+ periods for historical averages
+
+PRECISION:
+   • Sensitive to structural tariff changes
+   • Dependent on IA reference data quality
+   • May have false positives/negatives
+
+=============================================================================
+14. DEVELOPMENT ROADMAP
+=============================================================================
+
+COMPLETED (v1.0):
+   ✓ 7-page dashboard
+   ✓ Impala integration
+   ✓ Alert system with scoring
+   ✓ Strategic caching
+   ✓ Password authentication
+
+FUTURE IMPROVEMENTS:
+   • Multi-user authentication (LDAP/AD)
+   • Report export (PDF/Excel)
+   • Real-time data processing
+   • Machine learning model enhancements
+   • Mobile dashboard version
+   • API for programmatic access
+   • Audit trail logging
+
+=============================================================================
+15. TROUBLESHOOTING GUIDE
+=============================================================================
+
+ISSUE: Impala connection fails
+SOLUTION:
+   - Check credentials in ~/.streamlit/secrets.toml
+   - Verify VPN/network access
+   - Test: ping bdaworkernode02.sef.sc.gov.br
+
+ISSUE: No data loaded
+SOLUTION:
+   - Verify tables: SHOW TABLES IN niat;
+   - Check Impala user permissions
+   - Review logs: st.sidebar.text(traceback.format_exc())
+
+ISSUE: Slow performance
+SOLUTION:
+   - Increase cache TTL
+   - Reduce analysis period
+   - Check Impala indexes
+   - Use aggregated data instead of full detail
+
+=============================================================================
+16. REFERENCE LINKS
+=============================================================================
+
+Streamlit: https://docs.streamlit.io
+PySpark: https://spark.apache.org/docs/latest/sql-getting-started.html
+Impala: https://impala.apache.org/
+Plotly: https://plotly.com/python/
+
+=============================================================================
+17. PROJECT STATISTICS
+=============================================================================
+
+Total Files: 4 main files
+Python Code: 1,672 lines (ARGOSCA.py)
+Notebooks: 2 (18 cells each)
+Configuration: JSON metadata
+Data Volume: 1.7M+ records processed
+Companies Monitored: 500+ (top ranking)
+Periods Analyzed: 24 months (2023-2025)
+Products: 500+ distinct (GTIN+NCM)
+
+=============================================================================
+18. NOTES & IMPORTANT REMINDERS
+=============================================================================
+
+• Password in code is demo only - change before production
+• Ensure data confidentiality and compliance with LGPD/privacy laws
+• Regular backup of configuration and queries
+• Monitor database performance and optimize indexes
+• Update documentation with any custom modifications
+• Test all changes in development before production
+• Keep credentials secure and rotated regularly
+
+=============================================================================
+Document Created: November 2025
+Last Updated: November 2025
+Status: Complete and Ready for Use
+=============================================================================
